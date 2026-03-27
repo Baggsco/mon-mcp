@@ -335,7 +335,7 @@ inputSchema: {
   })
 },
 
-
+  },
 
   async ({ entreprise }) => {
 
