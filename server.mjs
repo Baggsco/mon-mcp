@@ -21,7 +21,6 @@ function createServer() {
 
 
 
-
 server.registerTool(
   "sirene_search",
   {
@@ -35,22 +34,22 @@ server.registerTool(
   },
   async ({ naf, departement, limit }) => {
     try {
-      const nafClean = naf.replace(".", "");
+      const nafFormatte = naf.includes(".") ? naf : `${naf.slice(0, 2)}.${naf.slice(2)}`;
       const apiKey = process.env.INSEE_API_KEY;
 
       if (!apiKey) {
         throw new Error("INSEE_API_KEY manquante");
       }
 
-      const query = `periode(etatAdministratifEtablissement:A) AND activitePrincipaleEtablissement:${nafClean} AND codeCommuneEtablissement:${departement}*`;
+      const query = `periode(etatAdministratifEtablissement:A) AND activitePrincipaleEtablissement:${nafFormatte} AND codePostalEtablissement:${departement}*`;
 
       const url = `https://api.insee.fr/api-sirene/3.11/siret?q=${encodeURIComponent(query)}&nombre=${limit}`;
 
       const response = await fetch(url, {
         headers: {
           "X-INSEE-Api-Key-Integration": apiKey,
-          "Accept": "application/json"
-        }
+          "Accept": "application/json",
+        },
       });
 
       if (!response.ok) {
