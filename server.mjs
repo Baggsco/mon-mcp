@@ -312,6 +312,95 @@ server.registerTool(
 
 
 
+server.registerTool(
+  "lead_signals_bodacc",
+  {
+    title: "Signaux BODACC",
+    description: "Détecte les événements récents (création, modification...)",
+    inputSchema: {
+      entreprises: z.array(z.object({
+        siren: z.string(),
+        nom: z.string(),
+        naf: z.string(),
+        departement: z.string(),
+        date_creation: z.string(),
+        effectif: z.string(),
+        score: z.number(),
+        dirigeant_nom: z.string().optional()
+      }))
+    },
+  },
+  async ({ entreprises }) => {
+
+    function detectSignal(annonce) {
+      const texte = JSON.stringify(annonce).toLowerCase();
+
+      if (texte.includes("création")) return "Création récente";
+      if (texte.includes("modification")) return "Modification récente";
+      if (texte.includes("cession")) return "Cession";
+      if (texte.includes("liquidation")) return "Procédure collective";
+
+      return "Aucun signal";
+    }
+
+    const enriched = [];
+
+    for (const e of entreprises) {
+      try {
+        const url = `https://bodacc.fr/api/data/v2/full?registre=RCS&page=1&per_page=10`;
+
+        const res = await fetch(url);
+
+        if (!res.ok) throw new Error("BODACC KO");
+
+        const data = await res.json();
+
+        const annonces = data?.annonces || [];
+
+        // 🔍 filtrer par SIREN
+        const match = annonces.find(a =>
+          JSON.stringify(a).includes(e.siren)
+        );
+
+        let signal = "Aucun signal";
+
+        if (match) {
+          signal = detectSignal(match);
+        }
+
+        enriched.push({
+          ...e,
+          signal
+        });
+
+      } catch (err) {
+        console.log("⚠️ BODACC fallback", err.message);
+
+        enriched.push({
+          ...e,
+          signal: "Aucun signal"
+        });
+      }
+    }
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(enriched, null, 2),
+        },
+      ],
+      structuredContent: {
+        results: enriched,
+        count: enriched.length,
+      },
+    };
+  }
+);
+
+
+
+
 
 
 server.registerTool(
@@ -348,15 +437,22 @@ inputSchema: {
     }
   }
 
-  const message = [
-    "Bonjour,",
-    "",
+  
 
-`Je me permets de vous contacter car j’ai identifié ${entreprise.nom}${
-  entreprise.dirigeant_nom && entreprise.dirigeant_nom !== "Non trouvé"
-    ? `, dirigée par ${entreprise.dirigeant_nom}`
-    : ""
-} comme une entreprise active dans le secteur ${entreprise.naf}.`,
+
+const introSignal =
+  entreprise.signal && entreprise.signal !== "Aucun signal"
+    ? `Suite à ${entreprise.signal.toLowerCase()}, `
+    : "";
+
+const message = [
+  "Bonjour,",
+  "",
+  `${introSignal}je me permets de vous contacter car j’ai identifié ${entreprise.nom}${
+    entreprise.dirigeant_nom && entreprise.dirigeant_nom !== "Non trouvé"
+      ? `, dirigée par ${entreprise.dirigeant_nom}`
+      : ""
+  } comme une entreprise active dans le secteur ${entreprise.naf}.`,
 
 
 
