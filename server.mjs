@@ -20,11 +20,14 @@ function createServer() {
 
 
 
+
+
+
 server.registerTool(
   "sirene_search",
   {
-    title: "Recherche SIRENE",
-    description: "Recherche hybride entreprises : API rapide puis fallback SIRENE v3.",
+    title: "Recherche SIRENE V3",
+    description: "Recherche des entreprises par code NAF et département (API officielle)",
     inputSchema: {
       naf: z.string().describe("Code NAF, ex: 6201Z ou 62.01Z"),
       departement: z.string().describe("Code département, ex: 75"),
@@ -32,90 +35,57 @@ server.registerTool(
     },
   },
   async ({ naf, departement, limit }) => {
-    const nafFormatte = naf.includes(".") ? naf : `${naf.slice(0, 2)}.${naf.slice(2)}`;
-    let entreprises = [];
-
-    // 1) API rapide : recherche-entreprises
     try {
-     
+      const nafClean = naf.replace(".", "");
 
-const url = `https://recherche-entreprises.api.gouv.fr/search?q=&activite_principale=${encodeURIComponent(
-  nafFormatte
-)}&departement=${encodeURIComponent(
-  departement
-)}&etat_administratif=A&page=1&per_page=${limit}`;
+      const url = `https://entreprises.data.gouv.fr/api/sirene/v3/etablissements?activite_principale=${nafClean}&code_departement=${departement}&etat_administratif=A&per_page=${limit}`;
 
-      const res = await fetch(url);
+      const response = await fetch(url);
 
-      if (!res.ok) {
-        throw new Error(`API principale indisponible (${res.status})`);
+      if (!response.ok) {
+        throw new Error(`SIRENE V3 error ${response.status}`);
       }
 
-      const data = await res.json();
+      const data = await response.json();
 
-      entreprises = (data.results || [])
+      const results = (data.etablissements || [])
         .map((e) => ({
           siren: e.siren,
-          nom: e.nom_complet,
+          nom: e.unite_legale?.denomination || e.unite_legale?.nom || "N/A",
           naf: e.activite_principale,
-          departement: e.siege?.departement,
-          date_creation: e.date_creation,
-          effectif: e.tranche_effectif_salarie,
+          departement: e.adresse?.code_departement,
+          date_creation: e.unite_legale?.date_creation,
+          effectif: e.tranche_effectif_salarie || "NN",
         }))
         .filter((e) => e.departement === departement)
         .slice(0, limit);
-    } catch (err) {
-      console.log("⚠️ API principale KO, fallback SIRENE V3 :", err.message);
 
-      // 2) Fallback SIRENE v3
-      try {
-        const url = `https://entreprises.data.gouv.fr/api/sirene/v3/etablissements?activite_principale=${encodeURIComponent(
-          nafFormatte
-        )}`;
-
-        const res = await fetch(url);
-
-        if (!res.ok) {
-          throw new Error(`SIRENE v3 indisponible (${res.status})`);
-        }
-
-        const data = await res.json();
-
-        entreprises = (data.etablissements || [])
-          .map((e) => ({
-            siren: e.siren,
-            nom: e.unite_legale?.denomination || e.unite_legale?.nom || "Nom inconnu",
-            naf: e.activite_principale,
-            departement: e.adresse?.code_postal?.slice(0, 2),
-            date_creation: e.date_creation,
-            effectif: e.tranche_effectif_salarie,
-          }))
-          .filter((e) => e.departement === departement)
-          .slice(0, limit);
-      } catch (err2) {
-        console.log("❌ fallback SIRENE aussi KO :", err2.message);
-
-        // 3) Fallback final
-        entreprises = [];
-         
-      }
-    }
-
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(entreprises, null, 2),
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(results, null, 2),
+          },
+        ],
+        structuredContent: {
+          results,
+          count: results.length,
         },
-      ],
-      structuredContent: {
-        results: entreprises,
-        count: entreprises.length,
-      },
-    };
+      };
+
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Erreur SIRENE V3: ${error.message}`,
+          },
+        ],
+        isError: true,
+      };
+    }
   }
 );
-
 
 
 
