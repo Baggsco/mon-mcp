@@ -22,12 +22,11 @@ function createServer() {
 
 
 
-
 server.registerTool(
   "sirene_search",
   {
-    title: "Recherche SIRENE V3",
-    description: "Recherche des entreprises par code NAF et département (API officielle)",
+    title: "Recherche entreprises (Annuaire)",
+    description: "Recherche des entreprises par code NAF et département",
     inputSchema: {
       naf: z.string().describe("Code NAF, ex: 6201Z ou 62.01Z"),
       departement: z.string().describe("Code département, ex: 75"),
@@ -36,25 +35,31 @@ server.registerTool(
   },
   async ({ naf, departement, limit }) => {
     try {
-      const nafClean = naf.replace(".", "");
+      const nafFormatte = naf.includes(".")
+        ? naf
+        : `${naf.slice(0, 2)}.${naf.slice(2)}`;
 
-      const url = `https://entreprises.data.gouv.fr/api/sirene/v3/etablissements?activite_principale=${nafClean}&code_departement=${departement}&etat_administratif=A&per_page=${limit}`;
+      const url = `https://recherche-entreprises.api.gouv.fr/search?activite_principale=${encodeURIComponent(
+        nafFormatte
+      )}&departement=${encodeURIComponent(
+        departement
+      )}&etat_administratif=A&page=1&per_page=${limit}`;
 
       const response = await fetch(url);
 
       if (!response.ok) {
-        throw new Error(`SIRENE V3 error ${response.status}`);
+        throw new Error(`API Recherche Entreprises ${response.status}`);
       }
 
       const data = await response.json();
 
-      const results = (data.etablissements || [])
+      const results = (data.results || [])
         .map((e) => ({
           siren: e.siren,
-          nom: e.unite_legale?.denomination || e.unite_legale?.nom || "N/A",
+          nom: e.nom_complet,
           naf: e.activite_principale,
-          departement: e.adresse?.code_departement,
-          date_creation: e.unite_legale?.date_creation,
+          departement: e.siege?.departement,
+          date_creation: e.date_creation,
           effectif: e.tranche_effectif_salarie || "NN",
         }))
         .filter((e) => e.departement === departement)
@@ -72,13 +77,12 @@ server.registerTool(
           count: results.length,
         },
       };
-
     } catch (error) {
       return {
         content: [
           {
             type: "text",
-            text: `Erreur SIRENE V3: ${error.message}`,
+            text: `Erreur recherche entreprises: ${error.message}`,
           },
         ],
         isError: true,
@@ -86,6 +90,7 @@ server.registerTool(
     }
   }
 );
+
 
 
 
