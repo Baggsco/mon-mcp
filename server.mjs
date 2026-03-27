@@ -37,11 +37,13 @@ server.registerTool(
 
     // 1) API rapide : recherche-entreprises
     try {
-      const url = `https://recherche-entreprises.api.gouv.fr/search?q=informatique&activite_principale=${encodeURIComponent(
-        nafFormatte
-      )}&departement=${encodeURIComponent(
-        departement
-      )}&etat_administratif=A&page=1&per_page=${limit}`;
+     
+
+const url = `https://recherche-entreprises.api.gouv.fr/search?q=&activite_principale=${encodeURIComponent(
+  nafFormatte
+)}&departement=${encodeURIComponent(
+  departement
+)}&etat_administratif=A&page=1&per_page=${limit}`;
 
       const res = await fetch(url);
 
@@ -507,11 +509,11 @@ server.registerTool(
         ? naf
         : `${naf.slice(0, 2)}.${naf.slice(2)}`;
 
-      const url = `https://recherche-entreprises.api.gouv.fr/search?q=informatique&activite_principale=${encodeURIComponent(
-        nafFormatte
-      )}&departement=${encodeURIComponent(
-        departement
-      )}&etat_administratif=A&page=1&per_page=${limit}`;
+  const url = `https://recherche-entreprises.api.gouv.fr/search?q=&activite_principale=${encodeURIComponent(
+  nafFormatte
+)}&departement=${encodeURIComponent(
+  departement
+)}&etat_administratif=A&page=1&per_page=${limit}`;
 
      
 
