@@ -470,7 +470,7 @@ app.delete("/mcp", async (req, res) => {
   await session.transport.handleRequest(req, res);
 });
 
-const PORT = process.env.PORT || 3000;
+
 
 app.get("/", (req, res) => {
   res.send("OK");
