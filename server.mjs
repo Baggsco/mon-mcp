@@ -32,83 +32,80 @@ server.registerTool(
       limit: z.number().int().min(1).max(100).default(10),
     },
   },
-  async ({ naf, departement, limit }) => {
-    try {
-      const nafFormatte = naf.includes(".") ? naf : `${naf.slice(0, 2)}.${naf.slice(2)}`;
-      const apiKey = process.env.INSEE_API_KEY;
-
-      if (!apiKey) {
-        throw new Error("INSEE_API_KEY manquante");
-      }
-
-
-
-
-const query = `periode(activitePrincipaleEtablissement:${nafFormatte} AND etatAdministratifEtablissement:A)`;
-
-
-
-
-    const url = `https://api.insee.fr/api-sirene/3.11/siret?q=${encodeURIComponent(query)}&nombre=${limit}`;
+  
 
 
 
 
 
-      const response = await fetch(url, {
-        headers: {
-          "X-INSEE-Api-Key-Integration": apiKey,
-          "Accept": "application/json",
-        },
-      });
+async ({ naf, departement, limit }) => {
+  try {
+    const nafFormatte = naf.includes(".") ? naf : `${naf.slice(0, 2)}.${naf.slice(2)}`;
+    const apiKey = process.env.INSEE_API_KEY;
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`API Sirene ${response.status}: ${errorText}`);
-      }
-
-      const data = await response.json();
-
-      const results = (data.etablissements || [])
-        .map((e) => ({
-          siren: e.siren,
-          nom:
-            e.uniteLegale?.denominationUniteLegale ||
-            `${e.uniteLegale?.prenomUsuelUniteLegale || ""} ${e.uniteLegale?.nomUniteLegale || ""}`.trim() ||
-            "N/A",
-          naf: e.activitePrincipaleEtablissement,
-          departement: e.adresseEtablissement?.codePostalEtablissement?.slice(0, 2),
-          date_creation: e.uniteLegale?.dateCreationUniteLegale,
-          effectif: e.trancheEffectifsEtablissement || "NN",
-        }))
-        .filter((e) => e.departement === departement)
-        .slice(0, limit);
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(results, null, 2),
-          },
-        ],
-        structuredContent: {
-          results,
-          count: results.length,
-        },
-      };
-    } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Erreur API Sirene Insee: ${error.message}`,
-          },
-        ],
-        isError: true,
-      };
+    if (!apiKey) {
+      throw new Error("INSEE_API_KEY manquante");
     }
+
+    const query = `periode(activitePrincipaleEtablissement:${nafFormatte} AND etatAdministratifEtablissement:A)`;
+    const url = `https://api.insee.fr/api-sirene/3.11/siret?q=${encodeURIComponent(query)}&nombre=${limit * 20}`;
+
+    const response = await fetch(url, {
+      headers: {
+        "X-INSEE-Api-Key-Integration": apiKey,
+        "Accept": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`API Sirene ${response.status}: ${errorText}`);
+    }
+
+    const data = await response.json();
+
+    const results = (data.etablissements || [])
+      .map((e) => ({
+        siren: e.siren,
+        nom:
+          e.uniteLegale?.denominationUniteLegale ||
+          `${e.uniteLegale?.prenomUsuelUniteLegale || ""} ${e.uniteLegale?.nomUniteLegale || ""}`.trim() ||
+          "N/A",
+        naf:
+          e.periodesEtablissement?.[0]?.activitePrincipaleEtablissement ||
+          e.uniteLegale?.activitePrincipaleUniteLegale ||
+          "",
+        departement: e.adresseEtablissement?.codePostalEtablissement?.slice(0, 2),
+        date_creation: e.uniteLegale?.dateCreationUniteLegale,
+        effectif: e.trancheEffectifsEtablissement || "NN",
+      }))
+      .filter((e) => e.departement === departement)
+      .slice(0, limit);
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(results, null, 2),
+        },
+      ],
+      structuredContent: {
+        results,
+        count: results.length,
+      },
+    };
+  } catch (error) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Erreur API Sirene Insee: ${error.message}`,
+        },
+      ],
+      isError: true,
+    };
   }
-);
+}
 
 
 
