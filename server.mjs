@@ -594,21 +594,43 @@ try {
         .slice(0, limit);
 
       // 2. Scoring
-      function computeScore(e) {
-        let score = 0;
+      
 
-        const year = parseInt(e.date_creation?.slice(0, 4));
-        if (year && year >= 2015) score += 2;
+function computeScore(e) {
+  let score = 0;
 
-        if (e.effectif !== "NN") score += 2;
+  // entreprise récente
+  const year = parseInt(e.date_creation?.slice(0, 4));
+  if (year && year >= 2015) score += 2;
 
-        const eff = parseInt(e.effectif);
-        if (eff >= 10 && eff <= 50) score += 2;
+  // effectif connu
+  if (e.effectif !== "NN") score += 2;
 
-        if (e.naf === "62.01Z") score += 2;
+  // PME intéressante
+  const eff = parseInt(e.effectif);
+  if (eff >= 10 && eff <= 50) score += 2;
 
-        return score;
-      }
+  // secteur IT
+  if (e.naf === "62.01Z") score += 2;
+
+  // 🔥 NOUVEAU : dirigeant trouvé
+  if (e.dirigeant_nom && e.dirigeant_nom !== "Non trouvé") {
+    score += 2;
+  }
+
+  // 🔥 NOUVEAU : signal business
+  if (e.signal && e.signal !== "Aucun signal") {
+    score += 3;
+
+    if (e.signal.toLowerCase().includes("création")) {
+      score += 2; // très chaud
+    }
+  }
+
+  return score;
+}
+
+
 
       const scored = entreprises
         .map((e) => ({
