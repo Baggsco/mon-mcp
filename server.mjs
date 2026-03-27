@@ -192,6 +192,8 @@ server.registerTool(
 );
 
 
+
+
 server.registerTool(
   "lead_pipeline",
   {
@@ -204,93 +206,115 @@ server.registerTool(
     },
   },
   async ({ naf, departement, limit }) => {
+    try {
 
-    // 1. Recherche entreprises
-    const nafFormatte = naf.includes(".") ? naf : `${naf.slice(0, 2)}.${naf.slice(2)}`;
-    const url = `https://recherche-entreprises.api.gouv.fr/search?q=informatique&activite_principale=${encodeURIComponent(nafFormatte)}&departement=${encodeURIComponent(departement)}&etat_administratif=A&page=1&per_page=${limit}`;
+      // 1. Recherche entreprises
+      const nafFormatte = naf.includes(".") ? naf : `${naf.slice(0, 2)}.${naf.slice(2)}`;
+      const url = `https://recherche-entreprises.api.gouv.fr/search?q=informatique&activite_principale=${encodeURIComponent(nafFormatte)}&departement=${encodeURIComponent(departement)}&etat_administratif=A&page=1&per_page=${limit}`;
 
-    const response = await fetch(url);
-    const data = await response.json();
+      const response = await fetch(url);
 
-    const entreprises = (data.results || [])
-      .map((e) => ({
-        siren: e.siren,
-        nom: e.nom_complet,
-        naf: e.activite_principale,
-        departement: e.siege?.departement,
-        date_creation: e.date_creation,
-        effectif: e.tranche_effectif_salarie,
-      }))
-      .filter((e) => e.departement === departement)
-      .slice(0, limit);
-
-    // 2. Scoring
-    function computeScore(e) {
-      let score = 0;
-
-      const year = parseInt(e.date_creation?.slice(0, 4));
-      if (year && year >= 2015) score += 2;
-
-      if (e.effectif !== "NN") score += 2;
-
-      const eff = parseInt(e.effectif);
-      if (eff >= 10 && eff <= 50) score += 2;
-
-      if (e.naf === "62.01Z") score += 2;
-
-      return score;
-    }
-
-    const scored = entreprises.map(e => ({
-      ...e,
-      score: computeScore(e)
-    })).sort((a, b) => b.score - a.score);
-
-    // 3. Génération email
-    const results = scored.map(e => {
-
-      let angle = "optimisation technique";
-
-      if (e.effectif !== "NN") {
-        const eff = parseInt(e.effectif);
-        if (eff >= 10 && eff <= 50) {
-          angle = "structuration et performance d'équipe technique";
-        }
+      // 👉 Gestion propre des erreurs HTTP
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`API recherche-entreprises a répondu ${response.status}: ${errorText}`);
       }
 
-      const message = [
-        "Bonjour,",
-        "",
-        `Je me permets de vous contacter car j’ai identifié ${e.nom} comme une entreprise active dans le secteur ${e.naf}.`,
-        "",
-        `Nous accompagnons des structures similaires sur des sujets de ${angle}.`,
-        "",
-        "Je serais ravi d’échanger avec vous pour voir si cela pourrait vous être utile.",
-        "",
-        "Bien à vous,"
-      ].join("\n");
+      const data = await response.json();
+
+      const entreprises = (data.results || [])
+        .map((e) => ({
+          siren: e.siren,
+          nom: e.nom_complet,
+          naf: e.activite_principale,
+          departement: e.siege?.departement,
+          date_creation: e.date_creation,
+          effectif: e.tranche_effectif_salarie,
+        }))
+        .filter((e) => e.departement === departement)
+        .slice(0, limit);
+
+      // 2. Scoring
+      function computeScore(e) {
+        let score = 0;
+
+        const year = parseInt(e.date_creation?.slice(0, 4));
+        if (year && year >= 2015) score += 2;
+
+        if (e.effectif !== "NN") score += 2;
+
+        const eff = parseInt(e.effectif);
+        if (eff >= 10 && eff <= 50) score += 2;
+
+        if (e.naf === "62.01Z") score += 2;
+
+        return score;
+      }
+
+      const scored = entreprises
+        .map((e) => ({
+          ...e,
+          score: computeScore(e),
+        }))
+        .sort((a, b) => b.score - a.score);
+
+      // 3. Génération email
+      const results = scored.map((e) => {
+        let angle = "optimisation technique";
+
+        if (e.effectif !== "NN") {
+          const eff = parseInt(e.effectif);
+          if (eff >= 10 && eff <= 50) {
+            angle = "structuration et performance d'équipe technique";
+          }
+        }
+
+        const message = [
+          "Bonjour,",
+          "",
+          `Je me permets de vous contacter car j’ai identifié ${e.nom} comme une entreprise active dans le secteur ${e.naf}.`,
+          "",
+          `Nous accompagnons des structures similaires sur des sujets de ${angle}.`,
+          "",
+          "Je serais ravi d’échanger avec vous pour voir si cela pourrait vous être utile.",
+          "",
+          "Bien à vous,"
+        ].join("\n");
+
+        return {
+          ...e,
+          message,
+        };
+      });
 
       return {
-        ...e,
-        message
-      };
-    });
-
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(results, null, 2),
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(results, null, 2),
+          },
+        ],
+        structuredContent: {
+          results,
+          count: results.length,
         },
-      ],
-      structuredContent: {
-        results,
-        count: results.length,
-      },
-    };
+      };
+
+    } catch (error) {
+
+      // 👉 réponse MCP propre (important pour OpenAI)
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Erreur dans lead_pipeline: ${error.message}`,
+          },
+        ],
+        isError: true,
+      };
+    }
   }
 );
-
 
 
 
