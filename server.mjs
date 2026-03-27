@@ -319,18 +319,24 @@ server.registerTool(
   {
     title: "Génération d'email",
     description: "Génère un email de prospection simple",
-    inputSchema: {
-      entreprise: z.object({
-        siren: z.string(),
-        nom: z.string(),
-        naf: z.string(),
-        departement: z.string(),
-        date_creation: z.string(),
-        effectif: z.string(),
-        score: z.number()
-      })
-    },
-  },
+ 
+
+inputSchema: {
+  entreprise: z.object({
+    siren: z.string(),
+    nom: z.string(),
+    naf: z.string(),
+    departement: z.string(),
+    date_creation: z.string(),
+    effectif: z.string(),
+    score: z.number(),
+    dirigeant_nom: z.string().optional(),
+    dirigeant_fonction: z.string().optional()
+  })
+},
+
+
+
   async ({ entreprise }) => {
 
   let angle = "optimisation technique";
@@ -345,7 +351,7 @@ server.registerTool(
   const message = [
     "Bonjour,",
     "",
-    `Je me permets de vous contacter car j’ai identifié ${entreprise.nom} comme une entreprise active dans le secteur ${entreprise.naf}.`,
+`Je me permets de vous contacter car j’ai identifié ${entreprise.nom}${entreprise.dirigeant_nom ? `, dirigée par ${entreprise.dirigeant_nom}` : ""} comme une entreprise active dans le secteur ${entreprise.naf}.`,
     "",
     `Nous accompagnons des structures similaires sur des sujets de ${angle}.`,
     "",
