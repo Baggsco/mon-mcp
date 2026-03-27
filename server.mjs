@@ -351,7 +351,15 @@ inputSchema: {
   const message = [
     "Bonjour,",
     "",
-`Je me permets de vous contacter car j’ai identifié ${entreprise.nom}${entreprise.dirigeant_nom ? `, dirigée par ${entreprise.dirigeant_nom}` : ""} comme une entreprise active dans le secteur ${entreprise.naf}.`,
+
+`Je me permets de vous contacter car j’ai identifié ${entreprise.nom}${
+  entreprise.dirigeant_nom && entreprise.dirigeant_nom !== "Non trouvé"
+    ? `, dirigée par ${entreprise.dirigeant_nom}`
+    : ""
+} comme une entreprise active dans le secteur ${entreprise.naf}.`,
+
+
+
     "",
     `Nous accompagnons des structures similaires sur des sujets de ${angle}.`,
     "",
