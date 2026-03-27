@@ -174,11 +174,15 @@ server.registerTool(
 
 
 
+
+
+
+
 server.registerTool(
   "lead_enrich_rncs",
   {
     title: "Enrichissement RNCS",
-    description: "Ajoute les dirigeants via INPI (robuste)",
+    description: "Ajoute les dirigeants via l'API RNE INPI",
     inputSchema: {
       entreprises: z.array(z.object({
         siren: z.string(),
@@ -187,64 +191,164 @@ server.registerTool(
         departement: z.string(),
         date_creation: z.string(),
         effectif: z.string(),
-        score: z.number()
+        score: z.number(),
+        priorite: z.string().optional(),
+        signal: z.string().optional()
       }))
     },
   },
   async ({ entreprises }) => {
+    async function loginINPI() {
+      const username = process.env.INPI_USERNAME;
+      const password = process.env.INPI_PASSWORD;
+
+      if (!username || !password) {
+        throw new Error("INPI_USERNAME ou INPI_PASSWORD manquant");
+      }
+
+      const res = await fetch("https://registre-national-entreprises.inpi.fr/api/sso/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify({ username, password })
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Login INPI ${res.status}: ${errorText}`);
+      }
+
+      const data = await res.json();
+
+      if (!data.token) {
+        throw new Error("Token INPI absent");
+      }
+
+      return data.token;
+    }
+
+    function firstNonEmpty(...values) {
+      for (const v of values) {
+        if (typeof v === "string" && v.trim() !== "") return v.trim();
+      }
+      return "";
+    }
+
+    function extractPersonName(detail) {
+      if (!detail) return "";
+
+      const dp =
+        detail.descriptionPersonne ||
+        detail.descriptionEntrepreneur ||
+        null;
+
+      if (!dp) return "";
+
+      const nom = firstNonEmpty(dp.nomUsage, dp.nom);
+      const prenoms = Array.isArray(dp.prenoms) ? dp.prenoms.filter(Boolean).join(" ") : "";
+      const full = `${prenoms} ${nom}`.trim();
+
+      return full || nom || prenoms || "";
+    }
 
     function extractDirigeant(data) {
-      try {
-        // 🔍 structure fréquente INPI
-        const dirigeants = data?.dirigeants || data?.representants || [];
+      const pouvoirs =
+        data?.content?.personneMorale?.composition?.pouvoirs ||
+        data?.content?.personnePhysique?.composition?.pouvoirs ||
+        data?.content?.exploitation?.composition?.pouvoirs ||
+        [];
 
-        if (Array.isArray(dirigeants) && dirigeants.length > 0) {
-          const d = dirigeants[0];
-
-          return {
-            nom: d.nom || d.nom_usage || d.prenom || "Inconnu",
-            fonction: d.qualite || d.role || "Dirigeant"
-          };
-        }
-
-        // 🔁 fallback structures possibles
-        const personnes = data?.personnes_physiques || [];
-
-        if (personnes.length > 0) {
-          const p = personnes[0];
-          return {
-            nom: `${p.prenom || ""} ${p.nom || ""}`.trim(),
-            fonction: "Dirigeant"
-          };
-        }
-
-        return {
-          nom: "Non trouvé",
-          fonction: "Inconnu"
-        };
-
-      } catch {
+      if (!Array.isArray(pouvoirs) || pouvoirs.length === 0) {
         return {
           nom: "Non trouvé",
           fonction: "Inconnu"
         };
       }
+
+      // on privilégie un pouvoir avec une personne physique identifiable
+      for (const p of pouvoirs) {
+        const nomIndividu = extractPersonName(p.individu);
+        const nomRepresentant = extractPersonName(p.representant);
+        const nomEntreprise = firstNonEmpty(
+          p?.entreprise?.denomination,
+          p?.entreprise?.nomCommercial
+        );
+
+        const nom = firstNonEmpty(nomIndividu, nomRepresentant, nomEntreprise);
+        const fonction = firstNonEmpty(
+          p.roleEntreprise,
+          p.secondRoleEntreprise,
+          p?.entreprise?.role,
+          "Dirigeant"
+        );
+
+        if (nom) {
+          return {
+            nom,
+            fonction
+          };
+        }
+      }
+
+      return {
+        nom: "Non trouvé",
+        fonction: "Inconnu"
+      };
+    }
+
+    let token;
+    try {
+      token = await loginINPI();
+    } catch (err) {
+      console.log("⚠️ Impossible de se connecter à l'INPI :", err.message);
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              entreprises.map((e) => ({
+                ...e,
+                dirigeant_nom: "Non trouvé",
+                dirigeant_fonction: "Inconnu"
+              })),
+              null,
+              2
+            ),
+          },
+        ],
+        structuredContent: {
+          results: entreprises.map((e) => ({
+            ...e,
+            dirigeant_nom: "Non trouvé",
+            dirigeant_fonction: "Inconnu"
+          })),
+          count: entreprises.length,
+        },
+      };
     }
 
     const enriched = [];
 
     for (const e of entreprises) {
       try {
-        const url = `https://data.inpi.fr/api/companies/${e.siren}`;
+        const url = `https://registre-national-entreprises.inpi.fr/api/companies/${e.siren}`;
 
-        const res = await fetch(url);
+        const res = await fetch(url, {
+          headers: {
+            "Accept": "application/json",
+            "Authorization": `Bearer ${token}`
+          }
+        });
 
         if (!res.ok) {
-          throw new Error(`INPI ${res.status}`);
+          const errorText = await res.text();
+          throw new Error(`INPI ${res.status}: ${errorText}`);
         }
 
         const data = await res.json();
-
         const dirigeant = extractDirigeant(data);
 
         enriched.push({
@@ -252,7 +356,6 @@ server.registerTool(
           dirigeant_nom: dirigeant.nom,
           dirigeant_fonction: dirigeant.fonction
         });
-
       } catch (err) {
         console.log("⚠️ INPI fallback pour", e.siren, err.message);
 
@@ -278,6 +381,9 @@ server.registerTool(
     };
   }
 );
+
+
+
 
 
 
