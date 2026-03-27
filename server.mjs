@@ -205,6 +205,116 @@ server.registerTool(
 
 
 server.registerTool(
+  "lead_enrich_rncs",
+  {
+    title: "Enrichissement RNCS",
+    description: "Ajoute les dirigeants via INPI (robuste)",
+    inputSchema: {
+      entreprises: z.array(z.object({
+        siren: z.string(),
+        nom: z.string(),
+        naf: z.string(),
+        departement: z.string(),
+        date_creation: z.string(),
+        effectif: z.string(),
+        score: z.number()
+      }))
+    },
+  },
+  async ({ entreprises }) => {
+
+    function extractDirigeant(data) {
+      try {
+        // 🔍 structure fréquente INPI
+        const dirigeants = data?.dirigeants || data?.representants || [];
+
+        if (Array.isArray(dirigeants) && dirigeants.length > 0) {
+          const d = dirigeants[0];
+
+          return {
+            nom: d.nom || d.nom_usage || d.prenom || "Inconnu",
+            fonction: d.qualite || d.role || "Dirigeant"
+          };
+        }
+
+        // 🔁 fallback structures possibles
+        const personnes = data?.personnes_physiques || [];
+
+        if (personnes.length > 0) {
+          const p = personnes[0];
+          return {
+            nom: `${p.prenom || ""} ${p.nom || ""}`.trim(),
+            fonction: "Dirigeant"
+          };
+        }
+
+        return {
+          nom: "Non trouvé",
+          fonction: "Inconnu"
+        };
+
+      } catch {
+        return {
+          nom: "Non trouvé",
+          fonction: "Inconnu"
+        };
+      }
+    }
+
+    const enriched = [];
+
+    for (const e of entreprises) {
+      try {
+        const url = `https://data.inpi.fr/api/companies/${e.siren}`;
+
+        const res = await fetch(url);
+
+        if (!res.ok) {
+          throw new Error(`INPI ${res.status}`);
+        }
+
+        const data = await res.json();
+
+        const dirigeant = extractDirigeant(data);
+
+        enriched.push({
+          ...e,
+          dirigeant_nom: dirigeant.nom,
+          dirigeant_fonction: dirigeant.fonction
+        });
+
+      } catch (err) {
+        console.log("⚠️ INPI fallback pour", e.siren, err.message);
+
+        enriched.push({
+          ...e,
+          dirigeant_nom: "Non trouvé",
+          dirigeant_fonction: "Inconnu"
+        });
+      }
+    }
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(enriched, null, 2),
+        },
+      ],
+      structuredContent: {
+        results: enriched,
+        count: enriched.length,
+      },
+    };
+  }
+);
+
+
+
+
+
+
+server.registerTool(
   "lead_email",
   {
     title: "Génération d'email",
