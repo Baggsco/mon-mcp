@@ -25,8 +25,8 @@ function createServer() {
 server.registerTool(
   "sirene_search",
   {
-    title: "Recherche entreprises (Annuaire)",
-    description: "Recherche des entreprises par code NAF et département",
+    title: "Recherche SIRENE officielle",
+    description: "Recherche des entreprises via l'API Sirene de l'Insee",
     inputSchema: {
       naf: z.string().describe("Code NAF, ex: 6201Z ou 62.01Z"),
       departement: z.string().describe("Code département, ex: 75"),
@@ -35,32 +35,42 @@ server.registerTool(
   },
   async ({ naf, departement, limit }) => {
     try {
-      const nafFormatte = naf.includes(".")
-        ? naf
-        : `${naf.slice(0, 2)}.${naf.slice(2)}`;
+      const nafClean = naf.replace(".", "");
+      const apiKey = process.env.INSEE_API_KEY;
 
-      const url = `https://recherche-entreprises.api.gouv.fr/search?activite_principale=${encodeURIComponent(
-        nafFormatte
-      )}&departement=${encodeURIComponent(
-        departement
-      )}&etat_administratif=A&page=1&per_page=${limit}`;
+      if (!apiKey) {
+        throw new Error("INSEE_API_KEY manquante");
+      }
 
-      const response = await fetch(url);
+      const query = `periode(etatAdministratifEtablissement:A) AND activitePrincipaleEtablissement:${nafClean} AND codeCommuneEtablissement:${departement}*`;
+
+      const url = `https://api.insee.fr/api-sirene/3.11/siret?q=${encodeURIComponent(query)}&nombre=${limit}`;
+
+      const response = await fetch(url, {
+        headers: {
+          "X-INSEE-Api-Key-Integration": apiKey,
+          "Accept": "application/json"
+        }
+      });
 
       if (!response.ok) {
-        throw new Error(`API Recherche Entreprises ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`API Sirene ${response.status}: ${errorText}`);
       }
 
       const data = await response.json();
 
-      const results = (data.results || [])
+      const results = (data.etablissements || [])
         .map((e) => ({
           siren: e.siren,
-          nom: e.nom_complet,
-          naf: e.activite_principale,
-          departement: e.siege?.departement,
-          date_creation: e.date_creation,
-          effectif: e.tranche_effectif_salarie || "NN",
+          nom:
+            e.uniteLegale?.denominationUniteLegale ||
+            `${e.uniteLegale?.prenomUsuelUniteLegale || ""} ${e.uniteLegale?.nomUniteLegale || ""}`.trim() ||
+            "N/A",
+          naf: e.activitePrincipaleEtablissement,
+          departement: e.adresseEtablissement?.codePostalEtablissement?.slice(0, 2),
+          date_creation: e.uniteLegale?.dateCreationUniteLegale,
+          effectif: e.trancheEffectifsEtablissement || "NN",
         }))
         .filter((e) => e.departement === departement)
         .slice(0, limit);
@@ -82,7 +92,7 @@ server.registerTool(
         content: [
           {
             type: "text",
-            text: `Erreur recherche entreprises: ${error.message}`,
+            text: `Erreur API Sirene Insee: ${error.message}`,
           },
         ],
         isError: true,
