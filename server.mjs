@@ -194,6 +194,36 @@ server.registerTool(
 
 
 
+// 👉 Fonction utilitaire retry (à placer au-dessus ou en haut du fichier)
+async function fetchWithRetry(url, maxRetries = 3) {
+  let lastError;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const response = await fetch(url);
+
+    if (response.ok) {
+      return response;
+    }
+
+    const errorText = await response.text();
+    lastError = new Error(
+      `API recherche-entreprises a répondu ${response.status}: ${errorText}`
+    );
+
+    // 👉 si ce n’est pas un 429 → on stop direct
+    if (response.status !== 429 || attempt === maxRetries) {
+      throw lastError;
+    }
+
+    // 👉 backoff exponentiel + jitter
+    const delayMs = 1000 * Math.pow(2, attempt) + Math.floor(Math.random() * 300);
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+
+  throw lastError;
+}
+
+// 👉 TOOL MCP
 server.registerTool(
   "lead_pipeline",
   {
@@ -209,17 +239,17 @@ server.registerTool(
     try {
 
       // 1. Recherche entreprises
-      const nafFormatte = naf.includes(".") ? naf : `${naf.slice(0, 2)}.${naf.slice(2)}`;
-      const url = `https://recherche-entreprises.api.gouv.fr/search?q=informatique&activite_principale=${encodeURIComponent(nafFormatte)}&departement=${encodeURIComponent(departement)}&etat_administratif=A&page=1&per_page=${limit}`;
+      const nafFormatte = naf.includes(".")
+        ? naf
+        : `${naf.slice(0, 2)}.${naf.slice(2)}`;
 
-      const response = await fetch(url);
+      const url = `https://recherche-entreprises.api.gouv.fr/search?q=informatique&activite_principale=${encodeURIComponent(
+        nafFormatte
+      )}&departement=${encodeURIComponent(
+        departement
+      )}&etat_administratif=A&page=1&per_page=${limit}`;
 
-      // 👉 Gestion propre des erreurs HTTP
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`API recherche-entreprises a répondu ${response.status}: ${errorText}`);
-      }
-
+      const response = await fetchWithRetry(url, 3);
       const data = await response.json();
 
       const entreprises = (data.results || [])
@@ -301,8 +331,6 @@ server.registerTool(
       };
 
     } catch (error) {
-
-      // 👉 réponse MCP propre (important pour OpenAI)
       return {
         content: [
           {
