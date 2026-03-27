@@ -41,9 +41,19 @@ server.registerTool(
         throw new Error("INSEE_API_KEY manquante");
       }
 
-      const query = `periode(etatAdministratifEtablissement:A) AND activitePrincipaleEtablissement:${nafFormatte} AND codePostalEtablissement:${departement}*`;
 
-      const url = `https://api.insee.fr/api-sirene/3.11/siret?q=${encodeURIComponent(query)}&nombre=${limit}`;
+
+
+const query = `periode(activitePrincipaleEtablissement:${nafFormatte} AND etatAdministratifEtablissement:A)`;
+
+
+
+
+    const url = `https://api.insee.fr/api-sirene/3.11/siret?q=${encodeURIComponent(query)}&nombre=${limit}`;
+
+
+
+
 
       const response = await fetch(url, {
         headers: {
