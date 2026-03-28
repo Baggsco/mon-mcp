@@ -743,7 +743,7 @@ const qFinal =
 
 
 const nombreFinal = args.nombre;
-const nombreRechercheParPage = Math.min(Math.max(nombreFinal * 10, 20), 100);
+const nombreRecherche = Math.min(Math.max(nombreFinal * 20, 20), 100);
 
 const requestedFields = uniqueStrings(
   args.fields?.length
@@ -751,72 +751,47 @@ const requestedFields = uniqueStrings(
     : DEFAULT_UNITARY_FIELDS
 );
 
-let debut = 0;
-let total = null;
-let finalResults = [];
-let nombreRechercheTotal = 0;
+const form = buildSearchEstablishmentsForm({
+  q: qFinal,
+  nombre: nombreRecherche,
+  tri: ["siret"],
+});
 
-while (finalResults.length < nombreFinal) {
-  const form = buildSearchEstablishmentsForm({
-    q: qFinal,
-    nombre: nombreRechercheParPage,
-    debut,
-    tri: ["siret"],
-  });
-
-  const searchData = await fetchSirene(
-    "https://api.insee.fr/api-sirene/3.11/siret",
-    {
-      method: "POST",
-      form,
-    }
-  );
-
-  if (total === null) {
-    total = searchData?.header?.total ?? null;
+const searchData = await fetchSirene(
+  "https://api.insee.fr/api-sirene/3.11/siret",
+  {
+    method: "POST",
+    form,
   }
+);
 
-  const rows = Array.isArray(searchData?.etablissements)
-    ? searchData.etablissements
-    : [];
+const rows = Array.isArray(searchData?.etablissements)
+  ? searchData.etablissements
+  : [];
 
-  if (rows.length === 0) {
-    break;
-  }
+const sirets = rows
+  .map((e) => e?.siret)
+  .filter((v) => typeof v === "string" && v.trim() !== "");
 
-  const sirets = rows
-    .map((e) => e?.siret)
-    .filter((v) => typeof v === "string" && v.trim() !== "");
+const hydrated = await hydrateEstablishments(
+  sirets,
+  requestedFields
+);
 
-  const hydrated = await hydrateEstablishments(
-    sirets,
-    requestedFields
-  );
+const filtered =
+  args.actifsSeulement === false
+    ? hydrated
+    : hydrated.filter(
+        (e) => e.etatAdministratifEtablissement === "A"
+      );
 
-  const filtered =
-    args.actifsSeulement === false
-      ? hydrated
-      : hydrated.filter(
-          (e) => e.etatAdministratifEtablissement === "A"
-        );
+const finalResults = filtered.slice(0, nombreFinal);
 
-  for (const item of filtered) {
-    if (finalResults.length < nombreFinal) {
-      finalResults.push(item);
-    }
-  }
 
-  nombreRechercheTotal += rows.length;
-  debut += rows.length;
 
-  if (rows.length < nombreRechercheParPage) {
-    break;
-  }
 
-  if (total !== null && debut >= total) {
-    break;
-  }
-}
+
+
 
 
 
@@ -825,9 +800,9 @@ const payload = {
   query: args.q,
   queryExecutee: qFinal,
   actifsSeulement: args.actifsSeulement !== false,
-  total,
+  total: searchData?.header?.total ?? null,
   nombreDemande: nombreFinal,
-  nombreRecherche: nombreRechercheTotal,
+  nombreRecherche,
   count: finalResults.length,
   results: finalResults,
 };
