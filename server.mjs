@@ -770,15 +770,21 @@ const form = buildSearchEstablishmentsForm({
 
 
 
-   const payload = {
+const filtered =
+  args.actifsSeulement === false
+    ? hydrated
+    : hydrated.filter(
+        (e) => e.etatAdministratifEtablissement === "A"
+      );
+
+const payload = {
   query: args.q,
   queryExecutee: qFinal,
   actifsSeulement: args.actifsSeulement !== false,
   total: searchData?.header?.total ?? null,
-  count: hydrated.length,
-  results: hydrated,
+  count: filtered.length,
+  results: filtered,
 };
-
 
 
 
