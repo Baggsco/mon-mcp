@@ -18,7 +18,8 @@ const SIRENE_FIELDS = [
   "nic",
   "statutDiffusionEtablissement",
   "dateCreationEtablissement",
-  "trancheEffectifsEtablissement"
+  "trancheEffectifsEtablissement",
+  "denominationUsuelleEtablissement"
 ];
 
 
@@ -32,7 +33,8 @@ function mapRaw(e) {
     nic: e?.nic ?? null,
     statutDiffusionEtablissement: e?.statutDiffusionEtablissement ?? null,
     dateCreationEtablissement: e?.dateCreationEtablissement ?? null,
-    trancheEffectifsEtablissement: e?.trancheEffectifsEtablissement ?? null
+    trancheEffectifsEtablissement: e?.trancheEffectifsEtablissement ?? null,
+    denominationUsuelleEtablissement: e?.denominationUsuelleEtablissement ?? null
   };
 }
 
