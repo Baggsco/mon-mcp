@@ -694,11 +694,30 @@ server.registerTool(
     title: "Recherche + hydratation complète SIRENE",
     description:
       "Recherche multicritère puis hydratation complète des établissements via SIRET.",
-    inputSchema: {
-      q: z.string(),
-      nombre: z.number().int().min(1).max(20).default(5),
-      fields: z.array(z.string()).optional(),
-    },
+    
+
+
+
+
+
+
+
+
+inputSchema: {
+  q: z.string(),
+  nombre: z.number().int().min(1).max(20).default(5),
+  fields: z.array(z.string()).optional(),
+  actifsSeulement: z.boolean().default(true),
+},
+
+
+
+
+
+
+
+
+
   },
   async (args) => {
     try {
@@ -708,8 +727,15 @@ server.registerTool(
 
 
 
+const qFinal =
+  args.actifsSeulement === false
+    ? args.q
+    : args.q.includes("etatAdministratifEtablissement")
+      ? args.q
+      : `${args.q} AND periode(etatAdministratifEtablissement:A)`;
+
 const form = buildSearchEstablishmentsForm({
-  q: args.q,
+  q: qFinal,
   nombre: args.nombre,
 });
 
@@ -739,12 +765,24 @@ const form = buildSearchEstablishmentsForm({
         requestedFields
       );
 
-      const payload = {
-        query: args.q,
-        total: searchData?.header?.total ?? null,
-        count: hydrated.length,
-        results: hydrated,
-      };
+
+
+
+
+
+   const payload = {
+  query: args.q,
+  queryExecutee: qFinal,
+  actifsSeulement: args.actifsSeulement !== false,
+  total: searchData?.header?.total ?? null,
+  count: hydrated.length,
+  results: hydrated,
+};
+
+
+
+
+
 
       return {
         content: [
