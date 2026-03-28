@@ -706,9 +706,11 @@ server.registerTool(
      
 
 
+
+
 const form = buildSearchEstablishmentsForm({
-  q,
-  nombre,
+  q: args.q,
+  nombre: args.nombre,
 });
 
 
