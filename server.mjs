@@ -13,23 +13,13 @@ const sessions = new Map();
 
 
 
-const SIRENE_FIELDS = [
+ const SIRENE_FIELDS = [
   "siret",
   "siren",
   "nic",
   "statutDiffusionEtablissement",
-  "dateCreationEtablissement",
-  "trancheEffectifsEtablissement",
-  "activitePrincipaleEtablissement",
-  "etatAdministratifEtablissement",
-  "denominationUniteLegale",
-  "codeCommuneEtablissement",
-  "libelleCommuneEtablissement",
-  "codePostalEtablissement",
-  "libelleVoieEtablissement",
-  "numeroVoieEtablissement"
+  "dateCreationEtablissement"
 ];
-
 
 
 
@@ -37,22 +27,13 @@ const SIRENE_FIELDS = [
 
 function mapRaw(e) {
   return {
+    siret: e?.siret ?? null,
     siren: e?.siren ?? null,
     nic: e?.nic ?? null,
-    siret: e?.siret ?? null,
     statutDiffusionEtablissement: e?.statutDiffusionEtablissement ?? null,
-    dateCreationEtablissement: e?.dateCreationEtablissement ?? null,
-    trancheEffectifsEtablissement: e?.trancheEffectifsEtablissement ?? null,
-    activitePrincipaleRegistreMetiersEtablissement: e?.activitePrincipaleRegistreMetiersEtablissement ?? null,
-    etatAdministratifUniteLegale: e?.etatAdministratifUniteLegale ?? null,
-    denominationUniteLegale: e?.denominationUniteLegale ?? null,
-    codeCommuneEtablissement: e?.codeCommuneEtablissement ?? null,
-    libelleCommuneEtablissement: e?.libelleCommuneEtablissement ?? null,
-    codePostalEtablissement: e?.codePostalEtablissement ?? null,
-   
+    dateCreationEtablissement: e?.dateCreationEtablissement ?? null
   };
 }
-
 
 
 
