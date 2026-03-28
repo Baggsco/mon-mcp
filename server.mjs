@@ -6,95 +6,584 @@ import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: "1mb" }));
 
 const sessions = new Map();
 
-
-
-const SIRENE_FIELDS = [
+const DEFAULT_ESTABLISHMENT_FIELDS = [
   "siret",
   "siren",
   "nic",
   "statutDiffusionEtablissement",
   "dateCreationEtablissement",
   "trancheEffectifsEtablissement",
-  "denominationUsuelleEtablissement"
+  "anneeEffectifsEtablissement",
+  "activitePrincipaleRegistreMetiersEtablissement",
+  "dateDernierTraitementEtablissement",
+  "etablissementSiege",
+  "etatAdministratifUniteLegale",
+  "statutDiffusionUniteLegale",
+  "unitePurgeeUniteLegale",
+  "dateCreationUniteLegale",
+  "categorieJuridiqueUniteLegale",
+  "denominationUniteLegale",
+  "sigleUniteLegale",
+  "denominationUsuelle1UniteLegale",
+  "denominationUsuelle2UniteLegale",
+  "denominationUsuelle3UniteLegale",
+  "sexeUniteLegale",
+  "nomUniteLegale",
+  "nomUsageUniteLegale",
+  "prenom1UniteLegale",
+  "prenom2UniteLegale",
+  "prenom3UniteLegale",
+  "prenom4UniteLegale",
+  "prenomUsuelUniteLegale",
+  "pseudonymeUniteLegale",
+  "activitePrincipaleUniteLegale",
+  "nomenclatureActivitePrincipaleUniteLegale",
+  "identifiantAssociationUniteLegale",
+  "economieSocialeSolidaireUniteLegale",
+  "societeMissionUniteLegale",
+  "caractereEmployeurUniteLegale",
+  "trancheEffectifsUniteLegale",
+  "anneeEffectifsUniteLegale",
+  "nicSiegeUniteLegale",
+  "dateDernierTraitementUniteLegale",
+  "categorieEntreprise",
+  "anneeCategorieEntreprise",
+  "complementAdresseEtablissement",
+  "numeroVoieEtablissement",
+  "indiceRepetitionEtablissement",
+  "dernierNumeroVoieEtablissement",
+  "indiceRepetitionDernierNumeroVoieEtablissement",
+  "typeVoieEtablissement",
+  "libelleVoieEtablissement",
+  "codePostalEtablissement",
+  "libelleCommuneEtablissement",
+  "libelleCommuneEtrangerEtablissement",
+  "distributionSpecialeEtablissement",
+  "codeCommuneEtablissement",
+  "codeCedexEtablissement",
+  "libelleCedexEtablissement",
+  "codePaysEtrangerEtablissement",
+  "libellePaysEtrangerEtablissement",
+  "identifiantAdresseEtablissement",
+  "coordonneeLambertAbscisseEtablissement",
+  "coordonneeLambertOrdonneeEtablissement",
+  "complementAdresse2Etablissement",
+  "numeroVoie2Etablissement",
+  "indiceRepetition2Etablissement",
+  "typeVoie2Etablissement",
+  "libelleVoie2Etablissement",
+  "codePostal2Etablissement",
+  "libelleCommune2Etablissement",
+  "libelleCommuneEtranger2Etablissement",
+  "distributionSpeciale2Etablissement",
+  "codeCommune2Etablissement",
+  "codeCedex2Etablissement",
+  "libelleCedex2Etablissement",
+  "codePaysEtranger2Etablissement",
+  "libellePaysEtranger2Etablissement",
+  "etatAdministratifEtablissement",
+  "enseigne1Etablissement",
+  "enseigne2Etablissement",
+  "enseigne3Etablissement",
+  "denominationUsuelleEtablissement",
+  "activitePrincipaleEtablissement",
+  "nomenclatureActivitePrincipaleEtablissement",
+  "caractereEmployeurEtablissement",
+  "score"
 ];
 
+const DEFAULT_UNITARY_FIELDS = [
+  ...DEFAULT_ESTABLISHMENT_FIELDS,
+  "nombrePeriodesEtablissement"
+];
 
+function uniqueStrings(values) {
+  return [...new Set((values || []).filter((v) => typeof v === "string" && v.trim() !== "").map((v) => v.trim()))];
+}
 
+function toBooleanString(value, defaultValue = undefined) {
+  if (value === undefined || value === null) return defaultValue;
+  if (typeof value === "boolean") return value ? "true" : "false";
+  if (value === "true" || value === "false") return value;
+  return defaultValue;
+}
 
+function normalizeSortInput(sort) {
+  if (!sort) return [];
+  if (Array.isArray(sort)) {
+    return sort.filter((x) => typeof x === "string" && x.trim() !== "").map((x) => x.trim());
+  }
+  if (typeof sort === "string" && sort.trim() !== "") {
+    return [sort.trim()];
+  }
+  return [];
+}
 
-function mapRaw(e) {
-  return {
-    siret: e?.siret ?? null,
+function normalizeFacetFieldInput(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) {
+    return value.filter((x) => typeof x === "string" && x.trim() !== "").map((x) => x.trim());
+  }
+  if (typeof value === "string" && value.trim() !== "") {
+    return [value.trim()];
+  }
+  return [];
+}
+
+function normalizeFacetIntervalsInput(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item) => item && typeof item.field === "string" && item.field.trim() !== "")
+    .map((item) => ({
+      field: item.field.trim(),
+      min: item.min ?? undefined,
+      max: item.max ?? undefined,
+      label: typeof item.label === "string" && item.label.trim() !== "" ? item.label.trim() : undefined,
+    }));
+}
+
+function normalizeFacetQueriesInput(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item) =>
+      item &&
+      typeof item.name === "string" &&
+      item.name.trim() !== "" &&
+      typeof item.q === "string" &&
+      item.q.trim() !== ""
+    )
+    .map((item) => ({
+      name: item.name.trim(),
+      q: item.q.trim(),
+    }));
+}
+
+function ensureApiKey() {
+  const apiKey = process.env.INSEE_API_KEY;
+  if (!apiKey) {
+    throw new Error("INSEE_API_KEY manquante");
+  }
+  return apiKey;
+}
+
+async function fetchSirene(url, { method = "GET", form = null } = {}) {
+  const apiKey = ensureApiKey();
+
+  const options = {
+    method,
+    headers: {
+      "X-INSEE-Api-Key-Integration": apiKey,
+      Accept: "application/json",
+    },
+  };
+
+  if (method === "POST" && form) {
+    options.headers["Content-Type"] = "application/x-www-form-urlencoded";
+    options.body = form.toString();
+  }
+
+  const res = await fetch(url, options);
+  const text = await res.text();
+
+  let data = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = null;
+  }
+
+  if (!res.ok) {
+    const message =
+      data?.header?.message ||
+      data?.message ||
+      text ||
+      `API Sirene ${res.status}`;
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+function buildSearchEstablishmentsForm(args) {
+  const form = new URLSearchParams();
+
+  if (typeof args.q === "string" && args.q.trim() !== "") {
+    form.set("q", args.q.trim());
+  }
+
+  if (typeof args.date === "string" && args.date.trim() !== "") {
+    form.set("date", args.date.trim());
+  }
+
+  const fields = uniqueStrings(args.fields?.length ? args.fields : DEFAULT_ESTABLISHMENT_FIELDS);
+  if (fields.length > 0) {
+    form.set("champs", fields.join(","));
+  }
+
+  const hideNulls = toBooleanString(args.masquerValeursNulles, "false");
+  if (hideNulls !== undefined) {
+    form.set("masquerValeursNulles", hideNulls);
+  }
+
+  const sortItems = normalizeSortInput(args.tri);
+  for (const item of sortItems) {
+    form.append("tri", item);
+  }
+
+  if (Number.isInteger(args.nombre)) {
+    form.set("nombre", String(args.nombre));
+  }
+
+  if (Number.isInteger(args.debut)) {
+    form.set("debut", String(args.debut));
+  }
+
+  if (typeof args.curseur === "string" && args.curseur.trim() !== "") {
+    form.set("curseur", args.curseur.trim());
+  }
+
+  const facetFields = normalizeFacetFieldInput(args.facetChamp);
+  for (const field of facetFields) {
+    form.append("facette.champ", field);
+  }
+
+  const facetQueries = normalizeFacetQueriesInput(args.facetRequetes);
+  for (const fq of facetQueries) {
+    form.append("facette.requete", fq.name);
+    form.append(`facette.${fq.name}.q`, fq.q);
+  }
+
+  const facetIntervals = normalizeFacetIntervalsInput(args.facetIntervalles);
+  for (const fi of facetIntervals) {
+    form.append("facette.intervalle", fi.field);
+    if (fi.min !== undefined) {
+      form.append(`facette.${fi.field}.min`, String(fi.min));
+    }
+    if (fi.max !== undefined) {
+      form.append(`facette.${fi.field}.max`, String(fi.max));
+    }
+    if (fi.label) {
+      form.append(`facette.${fi.field}.label`, fi.label);
+    }
+  }
+
+  return form;
+}
+
+function pickRequestedFields(source, requestedFields) {
+  const fields = uniqueStrings(requestedFields);
+  if (fields.length === 0) return source;
+  const out = {};
+  for (const key of fields) {
+    out[key] = Object.prototype.hasOwnProperty.call(source, key) ? source[key] : null;
+  }
+  return out;
+}
+
+function getCurrentPeriod(periodes) {
+  if (!Array.isArray(periodes) || periodes.length === 0) return null;
+  const current = periodes.find((p) => p && (p.dateFin === null || p.dateFin === undefined));
+  return current || periodes[0] || null;
+}
+
+function normalizeMulticriteriaEstablishment(row, requestedFields) {
+  const normalized = { ...row };
+  return pickRequestedFields(normalized, requestedFields);
+}
+
+function normalizeUnitaryEstablishment(payload, requestedFields) {
+  const e = payload?.etablissement ?? {};
+  const currentPeriod = getCurrentPeriod(e?.periodesEtablissement);
+
+  const merged = {
     siren: e?.siren ?? null,
     nic: e?.nic ?? null,
+    siret: e?.siret ?? null,
+
     statutDiffusionEtablissement: e?.statutDiffusionEtablissement ?? null,
     dateCreationEtablissement: e?.dateCreationEtablissement ?? null,
     trancheEffectifsEtablissement: e?.trancheEffectifsEtablissement ?? null,
-    denominationUsuelleEtablissement: e?.denominationUsuelleEtablissement ?? null
+    anneeEffectifsEtablissement: e?.anneeEffectifsEtablissement ?? null,
+    activitePrincipaleRegistreMetiersEtablissement: e?.activitePrincipaleRegistreMetiersEtablissement ?? null,
+    dateDernierTraitementEtablissement: e?.dateDernierTraitementEtablissement ?? null,
+    etablissementSiege: e?.etablissementSiege ?? null,
+    nombrePeriodesEtablissement: e?.nombrePeriodesEtablissement ?? null,
+
+    etatAdministratifUniteLegale: e?.etatAdministratifUniteLegale ?? null,
+    statutDiffusionUniteLegale: e?.statutDiffusionUniteLegale ?? null,
+    unitePurgeeUniteLegale: e?.unitePurgeeUniteLegale ?? null,
+    dateCreationUniteLegale: e?.dateCreationUniteLegale ?? null,
+    categorieJuridiqueUniteLegale: e?.categorieJuridiqueUniteLegale ?? null,
+    denominationUniteLegale: e?.denominationUniteLegale ?? null,
+    sigleUniteLegale: e?.sigleUniteLegale ?? null,
+    denominationUsuelle1UniteLegale: e?.denominationUsuelle1UniteLegale ?? null,
+    denominationUsuelle2UniteLegale: e?.denominationUsuelle2UniteLegale ?? null,
+    denominationUsuelle3UniteLegale: e?.denominationUsuelle3UniteLegale ?? null,
+    sexeUniteLegale: e?.sexeUniteLegale ?? null,
+    nomUniteLegale: e?.nomUniteLegale ?? null,
+    nomUsageUniteLegale: e?.nomUsageUniteLegale ?? null,
+    prenom1UniteLegale: e?.prenom1UniteLegale ?? null,
+    prenom2UniteLegale: e?.prenom2UniteLegale ?? null,
+    prenom3UniteLegale: e?.prenom3UniteLegale ?? null,
+    prenom4UniteLegale: e?.prenom4UniteLegale ?? null,
+    prenomUsuelUniteLegale: e?.prenomUsuelUniteLegale ?? null,
+    pseudonymeUniteLegale: e?.pseudonymeUniteLegale ?? null,
+    activitePrincipaleUniteLegale: e?.activitePrincipaleUniteLegale ?? null,
+    nomenclatureActivitePrincipaleUniteLegale:
+      e?.nomenclatureActivitePrincipaleUniteLegale ??
+      e?.nomenclatureActiviteUniteLegale ??
+      null,
+    identifiantAssociationUniteLegale: e?.identifiantAssociationUniteLegale ?? null,
+    economieSocialeSolidaireUniteLegale: e?.economieSocialeSolidaireUniteLegale ?? null,
+    societeMissionUniteLegale: e?.societeMissionUniteLegale ?? null,
+    caractereEmployeurUniteLegale: e?.caractereEmployeurUniteLegale ?? null,
+    trancheEffectifsUniteLegale: e?.trancheEffectifsUniteLegale ?? null,
+    anneeEffectifsUniteLegale: e?.anneeEffectifsUniteLegale ?? null,
+    nicSiegeUniteLegale: e?.nicSiegeUniteLegale ?? null,
+    dateDernierTraitementUniteLegale: e?.dateDernierTraitementUniteLegale ?? null,
+    categorieEntreprise: e?.categorieEntreprise ?? null,
+    anneeCategorieEntreprise: e?.anneeCategorieEntreprise ?? null,
+
+    complementAdresseEtablissement: e?.adresseEtablissement?.complementAdresseEtablissement ?? null,
+    numeroVoieEtablissement: e?.adresseEtablissement?.numeroVoieEtablissement ?? null,
+    indiceRepetitionEtablissement: e?.adresseEtablissement?.indiceRepetitionEtablissement ?? null,
+    dernierNumeroVoieEtablissement: e?.adresseEtablissement?.dernierNumeroVoieEtablissement ?? null,
+    indiceRepetitionDernierNumeroVoieEtablissement:
+      e?.adresseEtablissement?.indiceRepetitionDernierNumeroVoieEtablissement ?? null,
+    typeVoieEtablissement: e?.adresseEtablissement?.typeVoieEtablissement ?? null,
+    libelleVoieEtablissement: e?.adresseEtablissement?.libelleVoieEtablissement ?? null,
+    codePostalEtablissement: e?.adresseEtablissement?.codePostalEtablissement ?? null,
+    libelleCommuneEtablissement: e?.adresseEtablissement?.libelleCommuneEtablissement ?? null,
+    libelleCommuneEtrangerEtablissement:
+      e?.adresseEtablissement?.libelleCommuneEtrangerEtablissement ?? null,
+    distributionSpecialeEtablissement:
+      e?.adresseEtablissement?.distributionSpecialeEtablissement ?? null,
+    codeCommuneEtablissement: e?.adresseEtablissement?.codeCommuneEtablissement ?? null,
+    codeCedexEtablissement: e?.adresseEtablissement?.codeCedexEtablissement ?? null,
+    libelleCedexEtablissement: e?.adresseEtablissement?.libelleCedexEtablissement ?? null,
+    codePaysEtrangerEtablissement:
+      e?.adresseEtablissement?.codePaysEtrangerEtablissement ?? null,
+    libellePaysEtrangerEtablissement:
+      e?.adresseEtablissement?.libellePaysEtrangerEtablissement ?? null,
+    identifiantAdresseEtablissement:
+      e?.adresseEtablissement?.identifiantAdresseEtablissement ?? null,
+    coordonneeLambertAbscisseEtablissement:
+      e?.adresseEtablissement?.coordonneeLambertAbscisseEtablissement ?? null,
+    coordonneeLambertOrdonneeEtablissement:
+      e?.adresseEtablissement?.coordonneeLambertOrdonneeEtablissement ?? null,
+
+    complementAdresse2Etablissement: e?.adresse2Etablissement?.complementAdresse2Etablissement ?? null,
+    numeroVoie2Etablissement: e?.adresse2Etablissement?.numeroVoie2Etablissement ?? null,
+    indiceRepetition2Etablissement:
+      e?.adresse2Etablissement?.indiceRepetition2Etablissement ?? null,
+    typeVoie2Etablissement: e?.adresse2Etablissement?.typeVoie2Etablissement ?? null,
+    libelleVoie2Etablissement: e?.adresse2Etablissement?.libelleVoie2Etablissement ?? null,
+    codePostal2Etablissement: e?.adresse2Etablissement?.codePostal2Etablissement ?? null,
+    libelleCommune2Etablissement:
+      e?.adresse2Etablissement?.libelleCommune2Etablissement ?? null,
+    libelleCommuneEtranger2Etablissement:
+      e?.adresse2Etablissement?.libelleCommuneEtranger2Etablissement ?? null,
+    distributionSpeciale2Etablissement:
+      e?.adresse2Etablissement?.distributionSpeciale2Etablissement ?? null,
+    codeCommune2Etablissement: e?.adresse2Etablissement?.codeCommune2Etablissement ?? null,
+    codeCedex2Etablissement: e?.adresse2Etablissement?.codeCedex2Etablissement ?? null,
+    libelleCedex2Etablissement: e?.adresse2Etablissement?.libelleCedex2Etablissement ?? null,
+    codePaysEtranger2Etablissement:
+      e?.adresse2Etablissement?.codePaysEtranger2Etablissement ?? null,
+    libellePaysEtranger2Etablissement:
+      e?.adresse2Etablissement?.libellePaysEtranger2Etablissement ?? null,
+
+    etatAdministratifEtablissement:
+      currentPeriod?.etatAdministratifEtablissement ?? null,
+    enseigne1Etablissement: currentPeriod?.enseigne1Etablissement ?? null,
+    enseigne2Etablissement: currentPeriod?.enseigne2Etablissement ?? null,
+    enseigne3Etablissement: currentPeriod?.enseigne3Etablissement ?? null,
+    denominationUsuelleEtablissement:
+      currentPeriod?.denominationUsuelleEtablissement ?? null,
+    activitePrincipaleEtablissement:
+      currentPeriod?.activitePrincipaleEtablissement ?? null,
+    nomenclatureActivitePrincipaleEtablissement:
+      currentPeriod?.nomenclatureActivitePrincipaleEtablissement ?? null,
+    caractereEmployeurEtablissement:
+      currentPeriod?.caractereEmployeurEtablissement ?? null,
   };
+
+  return pickRequestedFields(merged, requestedFields);
 }
 
-
-
-
-
-
+const searchInputSchema = {
+  q: z.string().optional().describe("Requête multicritère Sirene brute. Exemple: codeCommuneEtablissement:49127 AND periode(etatAdministratifEtablissement:A)"),
+  date: z.string().optional().describe("Date de situation AAAA-MM-JJ"),
+  fields: z.array(z.string()).optional().describe("Liste de champs à retourner. Si absent, une liste par défaut complète est utilisée."),
+  masquerValeursNulles: z.boolean().optional().describe("Si true, demande à Sirene de masquer les valeurs nulles."),
+  tri: z.union([z.string(), z.array(z.string())]).optional().describe("Champ(s) de tri Sirene"),
+  nombre: z.number().int().min(0).max(100).default(10).describe("Nombre de résultats à retourner"),
+  debut: z.number().int().min(0).optional().describe("Offset de pagination"),
+  curseur: z.string().optional().describe("Curseur de pagination Sirene"),
+  facetChamp: z.union([z.string(), z.array(z.string())]).optional().describe("Champ(s) de facette automatiques"),
+  facetRequetes: z.array(z.object({
+    name: z.string(),
+    q: z.string(),
+  })).optional().describe("Facettes personnalisées de type requête"),
+  facetIntervalles: z.array(z.object({
+    field: z.string(),
+    min: z.union([z.number(), z.string()]).optional(),
+    max: z.union([z.number(), z.string()]).optional(),
+    label: z.string().optional(),
+  })).optional().describe("Facettes par intervalles"),
+};
 
 function createServer() {
   const server = new McpServer({
-    name: "sirene-siret-server",
-    version: "1.0.0",
+    name: "sirene-siret-agent",
+    version: "2.0.0",
   });
 
   server.registerTool(
     "search_establishments",
     {
-      description: "Retourne des établissements SIRET réels depuis l'API INSEE Sirene",
+      title: "Recherche multicritère d'établissements SIRENE",
+      description:
+        "Recherche multicritère sur /siret. Le filtrage passe par q. Les champs retournés sont configurables via fields. Les résultats sont SIRET-first.",
+      inputSchema: searchInputSchema,
+    },
+    async (args) => {
+      try {
+        const form = buildSearchEstablishmentsForm(args);
+        const data = await fetchSirene("https://api.insee.fr/api-sirene/3.11/siret", {
+          method: "POST",
+          form,
+        });
+
+        const requestedFields = uniqueStrings(args.fields?.length ? args.fields : DEFAULT_ESTABLISHMENT_FIELDS);
+        const results = Array.isArray(data?.etablissements)
+          ? data.etablissements.map((row) => normalizeMulticriteriaEstablishment(row, requestedFields))
+          : [];
+
+        const payload = {
+          header: data?.header ?? null,
+          query: {
+            q: args.q ?? null,
+            date: args.date ?? null,
+            nombre: args.nombre ?? 10,
+            debut: args.debut ?? null,
+            curseur: args.curseur ?? null,
+            tri: normalizeSortInput(args.tri),
+            fields: requestedFields,
+            masquerValeursNulles: args.masquerValeursNulles ?? false,
+            facetChamp: normalizeFacetFieldInput(args.facetChamp),
+            facetRequetes: normalizeFacetQueriesInput(args.facetRequetes),
+            facetIntervalles: normalizeFacetIntervalsInput(args.facetIntervalles),
+          },
+          results,
+          facettes: data?.facettes ?? null,
+          nextCursor: data?.header?.curseur ?? null,
+        };
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(payload, null, 2),
+            },
+          ],
+          structuredContent: payload,
+        };
+      } catch (error) {
+        const payload = {
+          error: true,
+          message: error instanceof Error ? error.message : String(error),
+        };
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(payload, null, 2),
+            },
+          ],
+          isError: true,
+          structuredContent: payload,
+        };
+      }
+    }
+  );
+
+  server.registerTool(
+    "get_establishment_by_siret",
+    {
+      title: "Fiche établissement par SIRET",
+      description:
+        "Lit la fiche détaillée d'un établissement via /siret/{siret}. Retourne les valeurs courantes unité légale, adresse, et la période courante des variables historisées établissement.",
       inputSchema: {
-        q: z.string(),
-        limit: z.number().int().min(1).max(100).default(10),
+        siret: z.string().regex(/^\d{14}$/).describe("SIRET à 14 chiffres"),
+        date: z.string().optional().describe("Date de situation AAAA-MM-JJ"),
+        fields: z.array(z.string()).optional().describe("Champs à retourner. Si absent, liste complète par défaut."),
+        masquerValeursNulles: z.boolean().optional(),
       },
     },
-    async ({ q, limit }) => {
-      const apiKey = process.env.INSEE_API_KEY;
-      if (!apiKey) throw new Error("INSEE_API_KEY manquante");
+    async (args) => {
+      try {
+        const params = new URLSearchParams();
+        if (typeof args.date === "string" && args.date.trim() !== "") {
+          params.set("date", args.date.trim());
+        }
 
-      
+        const requestedFields = uniqueStrings(args.fields?.length ? args.fields : DEFAULT_UNITARY_FIELDS);
+        if (requestedFields.length > 0) {
+          params.set("champs", requestedFields.join(","));
+        }
 
-const form = new URLSearchParams();
-form.set("q", q);
-form.set("nombre", String(limit));
-form.set("champs", SIRENE_FIELDS.join(","));
-form.set("masquerValeursNulles", "false");
+        const hideNulls = toBooleanString(args.masquerValeursNulles, "false");
+        if (hideNulls !== undefined) {
+          params.set("masquerValeursNulles", hideNulls);
+        }
 
-const res = await fetch("https://api.insee.fr/api-sirene/3.11/siret", {
-  method: "POST",
-  headers: {
-    "X-INSEE-Api-Key-Integration": apiKey,
-    "Content-Type": "application/x-www-form-urlencoded",
-    Accept: "application/json",
-  },
-  body: form.toString(),
-});
+        const url =
+          params.toString().length > 0
+            ? `https://api.insee.fr/api-sirene/3.11/siret/${args.siret}?${params.toString()}`
+            : `https://api.insee.fr/api-sirene/3.11/siret/${args.siret}`;
 
+        const data = await fetchSirene(url, { method: "GET" });
+        const result = normalizeUnitaryEstablishment(data, requestedFields);
 
+        const payload = {
+          header: data?.header ?? null,
+          siret: args.siret,
+          date: args.date ?? null,
+          result,
+        };
 
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(payload, null, 2),
+            },
+          ],
+          structuredContent: payload,
+        };
+      } catch (error) {
+        const payload = {
+          error: true,
+          message: error instanceof Error ? error.message : String(error),
+        };
 
-
-      if (!res.ok) {
-        throw new Error(await res.text());
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(payload, null, 2),
+            },
+          ],
+          isError: true,
+          structuredContent: payload,
+        };
       }
-
-      const data = await res.json();
-      const results = (data.etablissements || []).map(mapRaw);
-
-      return {
-        content: [{ type: "text", text: JSON.stringify(results, null, 2) }],
-      };
     }
   );
 
@@ -182,10 +671,16 @@ app.delete("/mcp", async (req, res) => {
   await session.transport.handleRequest(req, res);
 });
 
-const PORT = 3000;
-
-app.listen(PORT, () => {
-  console.log(`✅ MCP server running on http://localhost:${PORT}/mcp`);
-}).on("error", (err) => {
-  console.error("❌ Erreur serveur :", err);
+app.get("/", (_req, res) => {
+  res.send("OK");
 });
+
+const PORT = Number(process.env.PORT || 3000);
+
+app
+  .listen(PORT, () => {
+    console.log(`✅ MCP server running on http://localhost:${PORT}/mcp`);
+  })
+  .on("error", (err) => {
+    console.error("❌ Erreur serveur :", err);
+  });
