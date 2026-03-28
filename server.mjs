@@ -526,6 +526,51 @@ function normalizeUnitaryEstablishment(payload, requestedFields) {
       currentPeriod?.nomenclatureActivitePrincipaleEtablissement ?? null,
     caractereEmployeurEtablissement:
       currentPeriod?.caractereEmployeurEtablissement ?? null,
+
+
+
+
+
+
+    displayName: (() => {
+      if (e?.denominationUsuelleEtablissement) {
+        return {
+          value: e.denominationUsuelleEtablissement,
+          source: "denominationUsuelleEtablissement",
+        };
+      }
+
+      if (e?.enseigne1Etablissement) {
+        return {
+          value: e.enseigne1Etablissement,
+          source: "enseigne1Etablissement",
+        };
+      }
+
+      if (e?.denominationUniteLegale) {
+        return {
+          value: e.denominationUniteLegale,
+          source: "denominationUniteLegale",
+        };
+      }
+
+      if (e?.nomUniteLegale) {
+        return {
+          value: `${e.nomUniteLegale} ${e.prenom1UniteLegale ?? ""}`.trim(),
+          source: "personne_physique",
+        };
+      }
+
+      return null;
+    })(),
+
+
+
+
+
+
+
+
   };
 
   return pickRequestedFields(merged, requestedFields);
@@ -686,10 +731,20 @@ server.registerTool(
   async (args) => {
     try {
       // 1. Recherche
-      const form = buildSearchEstablishmentsForm({
-        q: args.q,
-        nombre: args.nombre,
-      });
+     
+
+
+const enrichedQuery = q.includes("periode(")
+  ? q
+  : `${q} AND periode(etatAdministratifEtablissement:A)`;
+
+const form = buildSearchEstablishmentsForm({
+  q: enrichedQuery,
+  nombre,
+});
+
+
+
 
       const searchData = await fetchSirene(
         "https://api.insee.fr/api-sirene/3.11/siret",
