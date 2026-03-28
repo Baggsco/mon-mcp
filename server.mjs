@@ -93,7 +93,7 @@ const DEFAULT_ESTABLISHMENT_FIELDS = [
   "activitePrincipaleEtablissement",
   "nomenclatureActivitePrincipaleEtablissement",
   "caractereEmployeurEtablissement",
-  "score"
+  
 ];
 
 const DEFAULT_UNITARY_FIELDS = [
@@ -295,9 +295,14 @@ function normalizeMulticriteriaEstablishment(row, requestedFields) {
   return pickRequestedFields(normalized, requestedFields);
 }
 
+
+
 function normalizeUnitaryEstablishment(payload, requestedFields) {
   const e = payload?.etablissement ?? {};
+  const ul = e?.uniteLegale ?? {};
   const currentPeriod = getCurrentPeriod(e?.periodesEtablissement);
+
+
 
   const merged = {
     siren: e?.siren ?? null,
@@ -326,27 +331,138 @@ function normalizeUnitaryEstablishment(payload, requestedFields) {
     sexeUniteLegale: e?.sexeUniteLegale ?? null,
     nomUniteLegale: e?.nomUniteLegale ?? null,
     nomUsageUniteLegale: e?.nomUsageUniteLegale ?? null,
-    prenom1UniteLegale: e?.prenom1UniteLegale ?? null,
-    prenom2UniteLegale: e?.prenom2UniteLegale ?? null,
-    prenom3UniteLegale: e?.prenom3UniteLegale ?? null,
-    prenom4UniteLegale: e?.prenom4UniteLegale ?? null,
-    prenomUsuelUniteLegale: e?.prenomUsuelUniteLegale ?? null,
-    pseudonymeUniteLegale: e?.pseudonymeUniteLegale ?? null,
-    activitePrincipaleUniteLegale: e?.activitePrincipaleUniteLegale ?? null,
+
+
+
+    etatAdministratifUniteLegale:
+      e?.etatAdministratifUniteLegale ??
+      ul?.etatAdministratifUniteLegale ??
+      null,
+    statutDiffusionUniteLegale:
+      e?.statutDiffusionUniteLegale ??
+      ul?.statutDiffusionUniteLegale ??
+      null,
+    unitePurgeeUniteLegale:
+      e?.unitePurgeeUniteLegale ??
+      ul?.unitePurgeeUniteLegale ??
+      null,
+    dateCreationUniteLegale:
+      e?.dateCreationUniteLegale ??
+      ul?.dateCreationUniteLegale ??
+      null,
+    categorieJuridiqueUniteLegale:
+      e?.categorieJuridiqueUniteLegale ??
+      ul?.categorieJuridiqueUniteLegale ??
+      null,
+    denominationUniteLegale:
+      e?.denominationUniteLegale ??
+      ul?.denominationUniteLegale ??
+      null,
+    sigleUniteLegale:
+      e?.sigleUniteLegale ??
+      ul?.sigleUniteLegale ??
+      null,
+    denominationUsuelle1UniteLegale:
+      e?.denominationUsuelle1UniteLegale ??
+      ul?.denominationUsuelle1UniteLegale ??
+      null,
+    denominationUsuelle2UniteLegale:
+      e?.denominationUsuelle2UniteLegale ??
+      ul?.denominationUsuelle2UniteLegale ??
+      null,
+    denominationUsuelle3UniteLegale:
+      e?.denominationUsuelle3UniteLegale ??
+      ul?.denominationUsuelle3UniteLegale ??
+      null,
+    sexeUniteLegale:
+      e?.sexeUniteLegale ??
+      ul?.sexeUniteLegale ??
+      null,
+    nomUniteLegale:
+      e?.nomUniteLegale ??
+      ul?.nomUniteLegale ??
+      null,
+    nomUsageUniteLegale:
+      e?.nomUsageUniteLegale ??
+      ul?.nomUsageUniteLegale ??
+      null,
+    prenom1UniteLegale:
+      e?.prenom1UniteLegale ??
+      ul?.prenom1UniteLegale ??
+      null,
+    prenom2UniteLegale:
+      e?.prenom2UniteLegale ??
+      ul?.prenom2UniteLegale ??
+      null,
+    prenom3UniteLegale:
+      e?.prenom3UniteLegale ??
+      ul?.prenom3UniteLegale ??
+      null,
+    prenom4UniteLegale:
+      e?.prenom4UniteLegale ??
+      ul?.prenom4UniteLegale ??
+      null,
+    prenomUsuelUniteLegale:
+      e?.prenomUsuelUniteLegale ??
+      ul?.prenomUsuelUniteLegale ??
+      null,
+    pseudonymeUniteLegale:
+      e?.pseudonymeUniteLegale ??
+      ul?.pseudonymeUniteLegale ??
+      null,
+    activitePrincipaleUniteLegale:
+      e?.activitePrincipaleUniteLegale ??
+      ul?.activitePrincipaleUniteLegale ??
+      null,
     nomenclatureActivitePrincipaleUniteLegale:
       e?.nomenclatureActivitePrincipaleUniteLegale ??
       e?.nomenclatureActiviteUniteLegale ??
+      ul?.nomenclatureActivitePrincipaleUniteLegale ??
+      ul?.nomenclatureActiviteUniteLegale ??
       null,
-    identifiantAssociationUniteLegale: e?.identifiantAssociationUniteLegale ?? null,
-    economieSocialeSolidaireUniteLegale: e?.economieSocialeSolidaireUniteLegale ?? null,
-    societeMissionUniteLegale: e?.societeMissionUniteLegale ?? null,
-    caractereEmployeurUniteLegale: e?.caractereEmployeurUniteLegale ?? null,
-    trancheEffectifsUniteLegale: e?.trancheEffectifsUniteLegale ?? null,
-    anneeEffectifsUniteLegale: e?.anneeEffectifsUniteLegale ?? null,
-    nicSiegeUniteLegale: e?.nicSiegeUniteLegale ?? null,
-    dateDernierTraitementUniteLegale: e?.dateDernierTraitementUniteLegale ?? null,
-    categorieEntreprise: e?.categorieEntreprise ?? null,
-    anneeCategorieEntreprise: e?.anneeCategorieEntreprise ?? null,
+    identifiantAssociationUniteLegale:
+      e?.identifiantAssociationUniteLegale ??
+      ul?.identifiantAssociationUniteLegale ??
+      null,
+    economieSocialeSolidaireUniteLegale:
+      e?.economieSocialeSolidaireUniteLegale ??
+      ul?.economieSocialeSolidaireUniteLegale ??
+      null,
+    societeMissionUniteLegale:
+      e?.societeMissionUniteLegale ??
+      ul?.societeMissionUniteLegale ??
+      null,
+    caractereEmployeurUniteLegale:
+      e?.caractereEmployeurUniteLegale ??
+      ul?.caractereEmployeurUniteLegale ??
+      null,
+    trancheEffectifsUniteLegale:
+      e?.trancheEffectifsUniteLegale ??
+      ul?.trancheEffectifsUniteLegale ??
+      null,
+    anneeEffectifsUniteLegale:
+      e?.anneeEffectifsUniteLegale ??
+      ul?.anneeEffectifsUniteLegale ??
+      null,
+    nicSiegeUniteLegale:
+      e?.nicSiegeUniteLegale ??
+      ul?.nicSiegeUniteLegale ??
+      null,
+    dateDernierTraitementUniteLegale:
+      e?.dateDernierTraitementUniteLegale ??
+      ul?.dateDernierTraitementUniteLegale ??
+      null,
+    categorieEntreprise:
+      e?.categorieEntreprise ??
+      ul?.categorieEntreprise ??
+      null,
+    anneeCategorieEntreprise:
+      e?.anneeCategorieEntreprise ??
+      ul?.anneeCategorieEntreprise ??
+      null,
+
+
+
 
     complementAdresseEtablissement: e?.adresseEtablissement?.complementAdresseEtablissement ?? null,
     numeroVoieEtablissement: e?.adresseEtablissement?.numeroVoieEtablissement ?? null,
@@ -551,12 +667,20 @@ function createServer() {
         const data = await fetchSirene(url, { method: "GET" });
         const result = normalizeUnitaryEstablishment(data, requestedFields);
 
-        const payload = {
+
+
+
+
+               const payload = {
           header: data?.header ?? null,
           siret: args.siret,
-          date: args.date ?? null,
+          date: args.date && args.date.trim() !== "" ? args.date.trim() : null,
           result,
         };
+
+
+
+
 
         return {
           content: [
