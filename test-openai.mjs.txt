@@ -1,0 +1,94 @@
+
+
+import OpenAI from "openai";
+import fs from "fs";
+import ExcelJS from "exceljs";
+
+async function main() {
+
+  const client = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+
+  const response = await client.responses.create({
+    model: "gpt-5.4",
+    input: `
+Trouve 5 entreprises en développement informatique (62.01Z) dans le département 75.
+
+Tu dois :
+1. utiliser sirene_search
+2. puis lead_score
+3. puis lead_email
+
+Retourne un JSON final avec :
+- siren
+- nom
+- score
+- message
+`,
+    tools: [
+      {
+        type: "mcp",
+        server_label: "mon-mcp",
+        server_url: "https://mon-mcp.onrender.com/mcp",
+        require_approval: "never"
+      }
+    ]
+  });
+
+  console.log("\n--- OUTPUT TEXT ---\n");
+  console.log(response.output_text);
+
+  // 👉 Extraction JSON
+  function extractJSON(text) {
+    try {
+      const match = text.match(/\[.*\]/s);
+      if (match) return JSON.parse(match[0]);
+    } catch {}
+    return null;
+  }
+
+  const data = extractJSON(response.output_text);
+
+  if (!data) {
+    console.log("❌ Impossible d'extraire le JSON");
+    process.exit(1);
+  }
+
+  // 👉 tri
+  data.sort((a, b) => b.score - a.score);
+
+  // 👉 Excel
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("Leads");
+
+  worksheet.columns = [
+    { header: "SIREN", key: "siren", width: 15 },
+    { header: "Nom", key: "nom", width: 30 },
+    { header: "Score", key: "score", width: 10 },
+    { header: "Statut", key: "statut", width: 20 },
+    { header: "Message", key: "message", width: 80 }
+  ];
+
+  worksheet.views = [{ state: "frozen", ySplit: 1 }];
+
+  data.forEach(row => {
+    worksheet.addRow({
+      ...row,
+      statut: "À contacter"
+    });
+  });
+
+  // 👉 style header
+  worksheet.getRow(1).font = { bold: true };
+
+  // 👉 sauvegarde
+const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+const filename = `leads-${timestamp}.xlsx`;
+
+await workbook.xlsx.writeFile(filename);
+
+console.log(`✅ Fichier Excel généré : ${filename}`);
+}
+
+main();
