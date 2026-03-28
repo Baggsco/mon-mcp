@@ -553,6 +553,44 @@ const searchInputSchema = {
   })).optional().describe("Facettes par intervalles"),
 };
 
+
+
+async function hydrateEstablishments(sirets, requestedFields) {
+  const results = [];
+
+  for (const siret of sirets) {
+    try {
+      const url = `https://api.insee.fr/api-sirene/3.11/siret/${siret}`;
+      const data = await fetchSirene(url, { method: "GET" });
+
+      const normalized = normalizeUnitaryEstablishment(
+        data,
+        requestedFields
+      );
+
+      results.push(normalized);
+    } catch (error) {
+      results.push({
+        siret,
+        error: true,
+        message:
+          error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return results;
+}
+
+
+
+
+
+
+
+
+
+
 function createServer() {
   const server = new McpServer({
     name: "sirene-siret-agent",
@@ -628,6 +666,105 @@ function createServer() {
       }
     }
   );
+
+
+
+
+
+server.registerTool(
+  "search_and_hydrate_establishments",
+  {
+    title: "Recherche + hydratation complète SIRENE",
+    description:
+      "Recherche multicritère puis hydratation complète des établissements via SIRET.",
+    inputSchema: {
+      q: z.string(),
+      nombre: z.number().int().min(1).max(20).default(5),
+      fields: z.array(z.string()).optional(),
+    },
+  },
+  async (args) => {
+    try {
+      // 1. Recherche
+      const form = buildSearchEstablishmentsForm({
+        q: args.q,
+        nombre: args.nombre,
+      });
+
+      const searchData = await fetchSirene(
+        "https://api.insee.fr/api-sirene/3.11/siret",
+        {
+          method: "POST",
+          form,
+        }
+      );
+
+      const sirets =
+        searchData?.etablissements?.map((e) => e.siret) || [];
+
+      // 2. Hydratation
+      const requestedFields = uniqueStrings(
+        args.fields?.length
+          ? args.fields
+          : DEFAULT_UNITARY_FIELDS
+      );
+
+      const hydrated = await hydrateEstablishments(
+        sirets,
+        requestedFields
+      );
+
+      const payload = {
+        query: args.q,
+        total: searchData?.header?.total ?? null,
+        count: hydrated.length,
+        results: hydrated,
+      };
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(payload, null, 2),
+          },
+        ],
+        structuredContent: payload,
+      };
+    } catch (error) {
+      const payload = {
+        error: true,
+        message:
+          error instanceof Error ? error.message : String(error),
+      };
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(payload, null, 2),
+          },
+        ],
+        isError: true,
+        structuredContent: payload,
+      };
+    }
+  }
+);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   server.registerTool(
     "get_establishment_by_siret",
@@ -732,6 +869,15 @@ app.post("/mcp", async (req, res) => {
           id: null,
         });
       }
+
+
+
+
+
+
+
+
+
 
       const server = createServer();
 
