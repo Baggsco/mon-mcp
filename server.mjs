@@ -721,10 +721,11 @@ inputSchema: {
   },
   async (args) => {
     try {
+
+
+
       // 1. Recherche
      
-
-
 
 
 const qFinal =
@@ -734,9 +735,17 @@ const qFinal =
       ? args.q
       : `${args.q} AND periode(etatAdministratifEtablissement:A)`;
 
+
+
+
+
+
+const nombreFinal = args.nombre;
+const nombreRecherche = Math.min(nombreFinal * 10, 100);
+
 const form = buildSearchEstablishmentsForm({
   q: qFinal,
-  nombre: args.nombre,
+  nombre: nombreRecherche,
 });
 
 
@@ -777,13 +786,17 @@ const filtered =
         (e) => e.etatAdministratifEtablissement === "A"
       );
 
+const finalResults = filtered.slice(0, nombreFinal);
+
 const payload = {
   query: args.q,
   queryExecutee: qFinal,
   actifsSeulement: args.actifsSeulement !== false,
   total: searchData?.header?.total ?? null,
-  count: filtered.length,
-  results: filtered,
+  nombreDemande: nombreFinal,
+  nombreRecherche,
+  count: finalResults.length,
+  results: finalResults,
 };
 
 
