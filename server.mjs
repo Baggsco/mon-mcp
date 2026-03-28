@@ -220,17 +220,27 @@ function createServer() {
       const apiKey = process.env.INSEE_API_KEY;
       if (!apiKey) throw new Error("INSEE_API_KEY manquante");
 
-      const url = new URL("https://api.insee.fr/api-sirene/3.11/siret");
-      url.searchParams.set("q", q);
-      url.searchParams.set("nombre", String(limit));
-      url.searchParams.set("champs", SIRENE_FIELDS.join(","));
+      
 
-      const res = await fetch(url, {
-        headers: {
-          "X-INSEE-Api-Key-Integration": apiKey,
-          Accept: "application/json",
-        },
-      });
+const form = new URLSearchParams();
+form.set("q", q);
+form.set("nombre", String(limit));
+form.set("champs", SIRENE_FIELDS.join(","));
+form.set("masquerValeursNulles", "false");
+
+const res = await fetch("https://api.insee.fr/api-sirene/3.11/siret", {
+  method: "POST",
+  headers: {
+    "X-INSEE-Api-Key-Integration": apiKey,
+    "Content-Type": "application/x-www-form-urlencoded",
+    Accept: "application/json",
+  },
+  body: form.toString(),
+});
+
+
+
+
 
       if (!res.ok) {
         throw new Error(await res.text());
