@@ -19,6 +19,9 @@ const sessions = new Map();
   "nic",
   "statutDiffusionEtablissement",
   "dateCreationEtablissement"
+"trancheEffectifsEtablissement",
+  "activitePrincipaleEtablissement",
+  "etatAdministratifEtablissement"
 ];
 
 
@@ -27,11 +30,14 @@ const sessions = new Map();
 
 function mapRaw(e) {
   return {
-    siret: e?.siret ?? null,
+   siret: e?.siret ?? null,
     siren: e?.siren ?? null,
     nic: e?.nic ?? null,
     statutDiffusionEtablissement: e?.statutDiffusionEtablissement ?? null,
-    dateCreationEtablissement: e?.dateCreationEtablissement ?? null
+    dateCreationEtablissement: e?.dateCreationEtablissement ?? null,
+    trancheEffectifsEtablissement: e?.trancheEffectifsEtablissement ?? null,
+    activitePrincipaleEtablissement: e?.activitePrincipaleEtablissement ?? null,
+    etatAdministratifEtablissement: e?.etatAdministratifEtablissement ?? null
   };
 }
 

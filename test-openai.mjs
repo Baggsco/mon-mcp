@@ -3,7 +3,7 @@
 async function main() {
   const q =
     process.argv[2] ||
-    'etatAdministratifEtablissement:A AND codeCommuneEtablissement:49127';
+    "codeCommuneEtablissement:49127";
 
   const limit = Number(process.argv[3] || "5");
 
@@ -26,15 +26,24 @@ async function main() {
         role: "system",
         content: `
 Utilise uniquement le tool MCP search_establishments.
-Ne fabrique aucune donnée.
-Ne modifie pas les résultats.
-Retourne uniquement le JSON du tool.
-Chaque résultat doit correspondre à un établissement identifié par un SIRET distinct.
+
+Règles strictes :
+- appelle le tool avec les arguments structurés exacts
+- passe q comme chaîne brute, sans ajouter de guillemets autour de toute l'expression
+- ne fabrique aucune donnée
+- ne modifie pas les résultats
+- retourne uniquement le JSON du tool
         `.trim(),
       },
       {
         role: "user",
-        content: `search_establishments avec q="${q}" et limit=${limit}`,
+        content: JSON.stringify({
+          tool: "search_establishments",
+          arguments: {
+            q,
+            limit,
+          },
+        }),
       },
     ],
   });
