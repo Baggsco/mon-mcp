@@ -13,24 +13,22 @@ const sessions = new Map();
 
 
 
- const SIRENE_FIELDS = [
+const SIRENE_FIELDS = [
   "siret",
   "siren",
   "nic",
   "statutDiffusionEtablissement",
-  "dateCreationEtablissement"
-"trancheEffectifsEtablissement",
+  "dateCreationEtablissement",
+  "trancheEffectifsEtablissement",
   "activitePrincipaleEtablissement",
   "etatAdministratifEtablissement"
 ];
 
 
 
-
-
 function mapRaw(e) {
   return {
-   siret: e?.siret ?? null,
+    siret: e?.siret ?? null,
     siren: e?.siren ?? null,
     nic: e?.nic ?? null,
     statutDiffusionEtablissement: e?.statutDiffusionEtablissement ?? null,
@@ -40,8 +38,6 @@ function mapRaw(e) {
     etatAdministratifEtablissement: e?.etatAdministratifEtablissement ?? null
   };
 }
-
-
 
 
 
