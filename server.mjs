@@ -45,8 +45,8 @@ function mapRaw(e) {
     trancheEffectifsEtablissement: e?.trancheEffectifsEtablissement ?? null,
     activitePrincipaleRegistreMetiersEtablissement: e?.activitePrincipaleRegistreMetiersEtablissement ?? null,
     etatAdministratifUniteLegale: e?.etatAdministratifUniteLegale ?? null,
-        denominationUniteLegale: e?.denominationUniteLegale ?? null,
-        codeCommuneEtablissement: e?.codeCommuneEtablissement ?? null,
+    denominationUniteLegale: e?.denominationUniteLegale ?? null,
+    codeCommuneEtablissement: e?.codeCommuneEtablissement ?? null,
     libelleCommuneEtablissement: e?.libelleCommuneEtablissement ?? null,
     codePostalEtablissement: e?.codePostalEtablissement ?? null,
    
