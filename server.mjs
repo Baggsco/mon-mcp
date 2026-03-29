@@ -874,7 +874,10 @@ const payload = {
           params.set("date", args.date.trim());
         }
 
-        const requestedFields = uniqueStrings(args.fields?.length ? args.fields : DEFAULT_UNITARY_FIELDS);
+     
+
+
+const requestedFields = DEFAULT_UNITARY_FIELDS;
         if (requestedFields.length > 0) {
           params.set("champs", requestedFields.join(","));
         }
@@ -891,6 +894,10 @@ const payload = {
 
         const data = await fetchSirene(url, { method: "GET" });
         const result = normalizeUnitaryEstablishment(data, requestedFields);
+
+
+
+
 
 
 
